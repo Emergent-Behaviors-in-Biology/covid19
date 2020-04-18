@@ -29,6 +29,14 @@ def format_kaggle(folder,metric):
     
     return data
 
+def format_predictions(path):
+    pred = pd.read_csv(path).fillna(value='NaN').set_index(['Country/Region','Province/State'])
+    for item in ['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high']:
+        pred[item] = pd.to_numeric(pred[item])
+    for item in ['th','th_low','th_high']:
+        pred[item] = pd.to_datetime(pred[item],format='%Y-%m-%d')
+    return pred
+
 def load_sim(path):
     data = pd.read_csv(path,index_col=0,header=[0,1])
     data.index = pd.to_datetime(data.index,format='%Y-%m-%d')
@@ -228,6 +236,28 @@ def fit_all(data,p0=5e2,plot=False,ylabel=None,prior=None):
                     plt.show()
             
     return params_list
+
+def predict_all(data,params_list,p0=50,c=0.95):
+    pred_idx = params_list.index.copy()
+    predictions = []
+    for item in pred_idx:
+        print(item[0]+', '+item[1])
+        train = data[item]
+        params = params_list.loc[item].copy()
+        try:
+            params_sweep = sweep_sigma(params,train,p0)
+            sigma,prob,scoremax = get_score_thresh(params_sweep,len(train.loc[train>p0]),c)
+            params_good = params_sweep[params_sweep[:,3]<=scoremax]
+            total = np.exp(params_good[:,1])
+            th = [pd.Timestamp.isoformat((tref+pd.to_timedelta(params_good[:,0],unit='days'))[k])[:10] for k in range(len(params_good))]
+            sigma = params_good[:,2]
+            best = np.argmin(params_good[:,-1])
+            predictions.append([total[best],total[0],total[-1],sigma[best],sigma[0],sigma[-1],th[best],th[0],th[-1]])
+        except:
+            print('---------------Failed---------------')
+            pred_idx = pred_idx.drop(item)
+    predictions = pd.DataFrame(predictions,index=pred_idx,columns=['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high','th','th_low','th_high'])
+    return predictions
 
 def data_collapse(data,params,scale=True,colors=list(sns.color_palette())*10,ax=None,ms=10,
                   endpoint=False,alpha=1,labels=True):
@@ -444,17 +474,17 @@ def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=F
         params_good = np.nan
     return fig,ax,params_good
 
-def simulate_pandemic_nodes(G,TG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
+def simulate_pandemic_nodes(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
     
     #Sample waiting times
     N = G.number_of_nodes()
     if sampling == 'Gaussian':
-        graph_waiting_times=np.abs(np.random.normal(TG, sigG, N))
+        graph_waiting_times=np.abs(np.random.normal(muG, sigG, N))
     elif sampling == 'Exponential':
-        graph_waiting_times=np.random.exponential(TG, N)
+        graph_waiting_times=np.random.exponential(muG, N)
     elif sampling == 'Gamma':
-        theta = sigG**2/TG
-        k = TG**2/sigG**2
+        theta = sigG**2/muG
+        k = muG**2/sigG**2
         graph_waiting_times=np.random.gamma(k,theta,N)
         
     #Create list of what nodes are infected and absolute time at
@@ -515,15 +545,15 @@ def simulate_pandemic_nodes(G,TG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
 
     return t, cum_cases, t_in, Rtild
 
-def simulate_pandemic_edges(G,TG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
+def simulate_pandemic_edges(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
     
     #Make waiting time distribution
     if sampling == 'Gaussian':
-        waiting_dist = lambda x: np.abs(random.normal(TG,sigG,x))
+        waiting_dist = lambda x: np.abs(random.normal(muG,sigG,x))
     elif sampling == 'Exponential':
-        waiting_dist = lambda x: np.random.exponential(TG, x)
+        waiting_dist = lambda x: np.random.exponential(muG, x)
     elif sampling == 'Gamma':
-        waiting_dist = lambda x: np.random.gamma(TG**2/sigG**2,sigG**2/TG,x)
+        waiting_dist = lambda x: np.random.gamma(muG**2/sigG**2,sigG**2/muG,x)
         
 
     N = G.number_of_nodes()
@@ -570,4 +600,4 @@ def simulate_pandemic_edges(G,TG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
     t_array=np.tile(t,(len(time_infected),1)).T
     cum_cases=np.sum(infection_times_array < t_array, axis=1)
 
-    return t, cum_cases, t_in
+    return t, cum_cases
