@@ -4,7 +4,5 @@ dependencies:
  - pandas
  - matplotlib
  - seaborn
- - datetime
  - scipy
  - networkx
- - operator
