@@ -1,0 +1,10 @@
+name: covid_plotting
+dependencies:
+	- numpy
+	- pandas
+	- matplotlib
+	- seaborn
+	- datetime
+	- scipy
+	- networkx
+	- operator
