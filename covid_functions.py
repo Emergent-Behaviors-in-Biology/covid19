@@ -257,7 +257,7 @@ def predict_all(data,params_list,p0=50,c=0.95):
             print('---------------Failed---------------')
             pred_idx = pred_idx.drop(item)
     predictions = pd.DataFrame(predictions,index=pred_idx,columns=['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high','th','th_low','th_high'])
-    return predictions
+    return predictions.dropna()
 
 def data_collapse(data,params,scale=True,colors=list(sns.color_palette())*10,ax=None,ms=10,
                   endpoint=False,alpha=1,labels=True):
@@ -601,3 +601,37 @@ def simulate_pandemic_edges(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
     cum_cases=np.sum(infection_times_array < t_array, axis=1)
 
     return t, cum_cases
+
+def stringency_scores(data,stringency,s_thresh=15,start_cutoff=5):
+    #Calculate for cases instead of fatalities
+    #Define the time from beginning (deaths > start_cutoff) to stringency threshold (s_thresh)
+    sd_time = pd.Series(np.ones(len(stringency.T))*np.nan,index=stringency.keys())
+    sd_start_level = pd.Series(np.ones(len(stringency.T))*np.nan,index=stringency.keys())
+    for item in sd_time.index:
+        #Find countries have names that agree in both JH and OxCGRT indices
+        if (item,'NaN') in data.T.index.tolist():
+            if (data[(item,'NaN')]>=start_cutoff).sum()>0:
+                #Compute t0 for the country
+                t0 = data[(item,'NaN')].loc[data[(item,'NaN')]>=start_cutoff].index[0]
+                if t0 in stringency.index:
+                    #Record stringency level at t0
+                    sd_start_level.loc[item] = stringency[item].loc[t0]
+                if (stringency[item]>s_thresh).sum()>0:
+                    #If country reaches the stringency threshold, calculate the time elapsed since t0
+                    sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+                else:
+                    #If the country never reaches the threshold, put a large number
+                    sd_time.loc[item] = 1000
+        #China really means the Hubei province for our purposes
+        elif item == 'China':
+            t0 = data[(item,'Hubei')].loc[data[(item,'Hubei')]>=start_cutoff].index[0]
+            sd_start_level.loc[item] = stringency[item].loc[t0]
+            sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+        #Need to treat the US separately because the whole country and the states are both
+        #in our table
+        elif item == 'United States':
+            t0 = data[('US','NaN')].loc[data[('US','NaN')]>=start_cutoff].index[0]
+            sd_start_level.loc[item] = stringency[item].loc[t0]
+            sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+
+    return sd_time, sd_start_level
