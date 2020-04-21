@@ -10,8 +10,16 @@ import networkx as nx
 from operator import itemgetter
 
 
-ep = 1e-80
-tref = pd.to_datetime('2020-01-01')
+ep = 1e-80 #For preventing overflow errors in norm.cdf
+tref = pd.to_datetime('2020-01-01') #Reference time for converting dates to numbers
+
+
+
+
+
+
+
+################# FORMATTING ########################
 
 def format_JH(url,drop_list,columns):
     data = pd.read_csv(url)
@@ -45,6 +53,13 @@ def load_sim(path):
     
     return data
 
+
+
+
+
+
+################# ESTIMATING PARAMETER VALUES ###############
+
 def cbarr(t):
     return 1/(np.sqrt(2*np.pi)*(1-norm.cdf(t)+ep))
 
@@ -66,6 +81,14 @@ def cost_init(params,data,tf):
     tvar_sample = (((data.index.values-tmean_sample)**2)*data.values).sum()/data.values.sum()
     
     return (tmean_sample-tmean(tf,params))**2 + (tvar_sample-tvar(tf,params))**2
+
+
+
+
+
+
+
+################### COST FUNCTIONs #################
 
 def cost_p(params,data,prior):
     th,logK,sigma = params
@@ -156,6 +179,14 @@ def jac_p_sig(params,data,sigma):
     return np.asarray([(dlogNdt*err).sum(),
                        -err.sum()])
 
+
+
+
+
+
+
+################## FITTING #####################
+
 def fit_erf_sig(data,p0=5e2,sigma=7):
     
     #Get initial conditions
@@ -179,7 +210,6 @@ def fit_erf_sig(data,p0=5e2,sigma=7):
     params = list(out.x)+[sigma,2*out.fun/len(train)]
     
     return params
-
 
 def fit_erf(data,p0=5e2,verbose=False,prior=None):
 
@@ -209,10 +239,8 @@ def fit_erf(data,p0=5e2,verbose=False,prior=None):
     train.index = t
     train = pd.to_numeric(train)
     out = minimize(cost_p,[th0,logK0,sig0],args=(train,prior),method='Nelder-Mead')
-    #out = minimize(cost_p,[th0,logK0,sig0],args=(train,prior),jac=jac_p,hess=hess_p)
-    #if not out.success:
-    #    out = minimize(cost_p,[th0,logK0,sig0],args=(train,prior),method='Nelder-Mead')
-        #out = minimize(cost_p,out.x,args=(train,),jac=jac_p,method='BFGS')
+
+    #Save the parameters and score, and print states
     params = list(out.x)+[2*out.fun/len(train)]
     if verbose:
         print(out)
@@ -223,11 +251,12 @@ def fit_all(data,p0=5e2,plot=False,ylabel=None,prior=None):
     params_list = pd.DataFrame(index=data.keys(),columns=['th','logK','sigma','score'])
     for item in data.keys():
         params_list.loc[item] = [np.nan,np.nan,np.nan,np.nan]
+        # Only fit regions that have nonzero new cases/fatalities on at least seven days
         if (data[item].diff()>1).sum() > 7:
+            # Only fit regions that have at least five data points after crossing p0
             if (data[item]>p0).sum() > 5:
                 params,params_0,success = fit_erf(data[item],p0=p0,prior=prior)
                 params_list.loc[item] = params
-
                 if plot:
                     fig,ax,params_good = plot_predictions(data[item],params)
                     ax.set_title(item)
@@ -237,66 +266,11 @@ def fit_all(data,p0=5e2,plot=False,ylabel=None,prior=None):
             
     return params_list.dropna()
 
-def predict_all(data,params_list,p0=50,c=0.95,verbose=False):
-    pred_idx = params_list.index.copy()
-    predictions = []
-    for item in pred_idx:
-        if verbose:
-            print(item[0]+', '+item[1])
-        train = data[item]
-        params = params_list.loc[item].copy()
-        try:
-            params_sweep = sweep_sigma(params,train,p0)
-            sigma,prob,scoremax = get_score_thresh(params_sweep,len(train.loc[train>p0]),c)
-            params_good = params_sweep[params_sweep[:,3]<=scoremax]
-            total = np.exp(params_good[:,1])
-            th = [pd.Timestamp.isoformat((tref+pd.to_timedelta(params_good[:,0],unit='days'))[k])[:10] for k in range(len(params_good))]
-            sigma = params_good[:,2]
-            best = np.argmin(params_good[:,-1])
-            predictions.append([total[best],total[0],total[-1],sigma[best],sigma[0],sigma[-1],th[best],th[0],th[-1]])
-        except:
-            if verbose:
-                print('---------------Failed---------------')
-            pred_idx = pred_idx.drop(item)
-    predictions = pd.DataFrame(predictions,index=pred_idx,columns=['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high','th','th_low','th_high'])
-    return predictions
 
-def data_collapse(data,params,scale=True,colors=list(sns.color_palette())*10,ax=None,ms=10,
-                  endpoint=False,alpha=1,labels=True):
-    if ax is None:
-        fig,ax=plt.subplots(figsize=(4,3))
-        fig.subplots_adjust(left=0.22,bottom=0.22,right=0.9)
-    else:
-        fig = np.nan
-    k = 0
-    for item in params.index:
-        th,logK,sigma = params[['th','logK','sigma']].loc[item]
-        if th is not 'NaN':
-            data_plot = data[item].copy()
-            if scale:
-                data_plot.index = ((data_plot.index-tref)/pd.to_timedelta(1,unit='days') - th)/sigma
-                data_plot = data_plot/np.exp(logK)
-            else:
-                data_plot.index = (data_plot.index-tref)/pd.to_timedelta(1,unit='days')
-            if labels:
-                if np.shape(item) is ():
-                    label = item
-                elif item[0] in ['China','US']:
-                    label = ', '.join([item[0],item[1]])
-                else:
-                    label = item[0]
-            else:
-                label=None
-            ax.semilogy(data_plot.index,data_plot.values,label=label,color=colors[k],alpha=alpha)
-            if endpoint:
-                ax.semilogy([data_plot.index[-1]],[data_plot.values[-1]],'o',color=colors[k],markersize=ms)
-            k+=1
-        else:
-            print('----------------')
-            print(', '.join(item)+' not included.')
-            
-    return fig,ax
 
+
+
+################## CONDFIDENCE BOUNDS AND PRIORS ###################
 
 def make_prior(data,params,thresh,plot=False,buffer=0):
 
@@ -405,6 +379,78 @@ def conf_bounds_sigma(t,params_sweep,M,c):
     
     return lb,ml,ub,params_good
 
+def predict_all(data,params_list,p0=50,c=0.95,verbose=False,th_string=False):
+    pred_idx = params_list.index.copy()
+    predictions = []
+    for item in pred_idx:
+        if verbose:
+            print(item[0]+', '+item[1])
+
+        #Load the data and best-fit params
+        train = data[item]
+        params = params_list.loc[item].copy()
+        try:
+            #Fit for a range of sigma values
+            params_sweep = sweep_sigma(params,train,p0)
+            sigma,prob,scoremax = get_score_thresh(params_sweep,len(train.loc[train>p0]),c)
+            params_good = params_sweep[params_sweep[:,3]<=scoremax]
+            total = np.exp(params_good[:,1])
+            th = tref+pd.to_timedelta(params_good[:,0],unit='days')
+            if th_string:
+                th = [pd.Timestamp.isoformat(th[k])[:10] for k in range(len(params_good))]
+            sigma = params_good[:,2]
+            best = np.argmin(params_good[:,-1])
+            predictions.append([total[best],total[0],total[-1],sigma[best],sigma[0],sigma[-1],th[best],th[0],th[-1]])
+        except:
+            if verbose:
+                print('---------------Failed---------------')
+            pred_idx = pred_idx.drop(item)
+    predictions = pd.DataFrame(predictions,index=pred_idx,columns=['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high','th','th_low','th_high'])
+    return predictions
+
+
+
+
+
+
+########################### PLOTTING ##########################
+
+def data_collapse(data,params,scale=True,colors=list(sns.color_palette())*10,ax=None,ms=10,
+                  endpoint=False,alpha=1,labels=True):
+    if ax is None:
+        fig,ax=plt.subplots(figsize=(4,3))
+        fig.subplots_adjust(left=0.22,bottom=0.22,right=0.9)
+    else:
+        fig = np.nan
+    k = 0
+    for item in params.index:
+        th,logK,sigma = params[['th','logK','sigma']].loc[item]
+        if th is not 'NaN':
+            data_plot = data[item].copy()
+            if scale:
+                data_plot.index = ((data_plot.index-tref)/pd.to_timedelta(1,unit='days') - th)/sigma
+                data_plot = data_plot/np.exp(logK)
+            else:
+                data_plot.index = (data_plot.index-tref)/pd.to_timedelta(1,unit='days')
+            if labels:
+                if np.shape(item) is ():
+                    label = item
+                elif item[0] in ['China','US']:
+                    label = ', '.join([item[0],item[1]])
+                else:
+                    label = item[0]
+            else:
+                label=None
+            ax.semilogy(data_plot.index,data_plot.values,label=label,color=colors[k],alpha=alpha)
+            if endpoint:
+                ax.semilogy([data_plot.index[-1]],[data_plot.values[-1]],'o',color=colors[k],markersize=ms)
+            k+=1
+        else:
+            print('----------------')
+            print(', '.join(item)+' not included.')
+            
+    return fig,ax
+
 def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=False,c=0.95,ms=4,
                      start_cutoff=5,prior=None,mask=None,th_true=None,ax=None,sig_bound=80):
     colors = sns.color_palette()
@@ -475,6 +521,16 @@ def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=F
     if conf_type != 'sigma':
         params_good = np.nan
     return fig,ax,params_good
+
+
+
+
+
+
+
+
+
+################## SIMULATION ##########################
 
 def simulate_pandemic_nodes(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
     
@@ -547,7 +603,7 @@ def simulate_pandemic_nodes(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
 
     return t, cum_cases, t_in, Rtild
 
-def simulate_pandemic_edges(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
+def simulate_pandemic_edges(G,muG,sigG,sampling='Gamma',N_0=5,p=1,tmax=500):
     
     #Make waiting time distribution
     if sampling == 'Gaussian':

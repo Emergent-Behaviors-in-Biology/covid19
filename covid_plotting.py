@@ -17,32 +17,64 @@ cases = cases_global.join(cases_US)
 deaths = deaths_global.join(deaths_US)
 
 #Load full prediction tables, with confidence bounds
-pred_date = datetime(2020,4,15)
-predictions_deaths = format_predictions('output/predictions_deaths_apr15.csv')
-predictions_cases = format_predictions('output/predictions_cases_apr15.csv')
+pred_date_apr15 = datetime(2020,4,15)
+predictions_deaths_apr15 = format_predictions('output/predictions_deaths_apr15.csv')
+predictions_cases_apr15 = format_predictions('output/predictions_cases_apr15.csv')
 
-def plot_region(country,region,forecast_days=20,thresh=10,ax=None):
+def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=False,new_predictions=None):
 
+	#Load predictions
+	if new_predictions is None:
+		predictions_deaths = predictions_deaths_apr15
+		predictions_cases = predictions_cases_apr15
+		pred_date = pred_date_apr15
+	else:
+		pred_date = deaths.index[-1]
+		try:
+			predictions_deaths,predictions_cases = new_predictions
+		except:
+			print('new_predictions must be a tuple of two Pandas dataframes with predictions for deaths and cases')
+			return np.nan
+
+	#Set up axes
 	if ax is None:
-		fig,ax=plt.subplots(2,figsize=(10,12),sharex=True)
+		fig,ax=plt.subplots(2,figsize=(12,12),sharex=True)
 		fig.subplots_adjust(hspace=0.05)
 
+	#Set up prediction time axis
 	t0 = cases[country,region].loc[cases[country,region]>thresh].index[0]
+	daymax = int((datetime.today()+timedelta(days=forecast_days)-t0)/timedelta(days=1))
+	t = pd.to_datetime([t0+timedelta(days=k) for k in range(1,daymax)])
+	if log_scale:
+		time_axis_pred = (t-t0)/timedelta(days=1)
+		pred_date = (pred_date-t0)/timedelta(days=1)
+	else:
+		time_axis_pred = t
 
+	######FATALITIES########
+	#Load data
 	data = deaths[country,region].copy()
 	data = data.loc[data>thresh]
-	ax[0].plot(data.index,data.values,marker='o',label='data')
+
+	#Set up data time axis
+	if log_scale:
+		time_axis_data = (data.index-t0+timedelta(days=1))/timedelta(days=1)
+	else:
+		time_axis_data = data.index
+
+	#Plot data
+	ax[0].plot(time_axis_data,data.values,marker='o',label='data')
+
+	#Plot predictions
 	if (country,region) in predictions_deaths.index.tolist():
 	    pred = predictions_deaths.loc[country,region]
-	    daymax = int((datetime.today()+timedelta(days=forecast_days)-t0)/timedelta(days=1))
-	    t = pd.to_datetime([t0+timedelta(days=k) for k in range(daymax)])
 	    tau = ((t-pred['th'])/timedelta(days=1))/pred['sigma']
 	    tau_low = ((t-pred['th_low'])/timedelta(days=1))/pred['sigma_low']
 	    tau_high = ((t-pred['th_high'])/timedelta(days=1))/pred['sigma_high']
-	    ax[0].fill_between(t,pred['Nmax_low']*norm.cdf(tau_low),pred['Nmax_high']*norm.cdf(tau_high),color='gray',alpha=0.5)
-	    ax[0].plot(t,pred['Nmax']*norm.cdf(tau),label='prediction')
-	    ax[0].legend()
+	    ax[0].fill_between(time_axis_pred,pred['Nmax_low']*norm.cdf(tau_low),pred['Nmax_high']*norm.cdf(tau_high),color='gray',alpha=0.5)
+	    ax[0].plot(time_axis_pred,pred['Nmax']*norm.cdf(tau),label='prediction')
 	    ax[0].plot([pred_date,pred_date],[data.min(),3*data.max()],'k--',label='prediction date')
+	    ax[0].legend()
 	else:
 	    ax[0].text(0.05,0.88,'No prediction available',fontsize=11,transform=ax[0].transAxes)
 	ax[0].set_yscale('log')
@@ -50,28 +82,42 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None):
 	ax[0].set_ylim((thresh,None))
 	ax[0].set_ylabel('Cumulative fatalities')
 
+	############CASES###############
+	#Load data
 	data = cases[country,region].copy()
 	data = data.loc[data>thresh]
-	ax[1].plot(data.index,data.values,marker='o',label='data')
 
+	#Set up data time axis
+	if log_scale:
+		time_axis_data = (data.index-t0+timedelta(days=1))/timedelta(days=1)
+	else:
+		time_axis_data = data.index
+
+	#Plot data
+	ax[1].plot(time_axis_data,data.values,marker='o',label='data')
+
+	#Plot predictions
 	if (country,region) in predictions_cases.index.tolist():
 	    pred = predictions_cases.loc[country,region]
-	    daymax = int((datetime.today()+timedelta(days=forecast_days)-t0)/timedelta(days=1))
-	    t = pd.to_datetime([t0+timedelta(days=k) for k in range(daymax)])
 	    tau = ((t-pred['th'])/timedelta(days=1))/pred['sigma']
 	    tau_low = ((t-pred['th_low'])/timedelta(days=1))/pred['sigma_low']
 	    tau_high = ((t-pred['th_high'])/timedelta(days=1))/pred['sigma_high']
-	    ax[1].fill_between(t,pred['Nmax_low']*norm.cdf(tau_low),pred['Nmax_high']*norm.cdf(tau_high),color='gray',alpha=0.5)
-	    ax[1].plot(t,pred['Nmax']*norm.cdf(tau),label='prediction')
+	    ax[1].fill_between(time_axis_pred,pred['Nmax_low']*norm.cdf(tau_low),pred['Nmax_high']*norm.cdf(tau_high),color='gray',alpha=0.5)
+	    ax[1].plot(time_axis_pred,pred['Nmax']*norm.cdf(tau),label='prediction')
 	    ax[1].plot([pred_date,pred_date],[data.min(),3*data.max()],'k--',label='prediction date')
 	else:
 	    ax[1].text(0.05,0.88,'No prediction available',fontsize=11,transform=ax[1].transAxes)
 	ax[1].set_yscale('log')
 	ax[1].set_ylabel('Cumulative confirmed cases')
 	ax[1].set_ylim((thresh,None))
-	ax[1].xaxis.set_major_locator(mdates.MonthLocator())
-	ax[1].xaxis.set_minor_locator(mdates.DayLocator())
-	ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+	if log_scale:
+		ax[1].set_xscale('log')
+		ax[1].set_xlabel('Elapsed time (days)')
+	else:
+		ax[1].xaxis.set_minor_locator(mdates.DayLocator())
+		ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
+		ax[1].set_xlabel('Date (mm-dd)')
+		fig.autofmt_xdate()
 	plt.show()
 
 def plot_collapse(params_deaths,params_cases,thresh=500):
