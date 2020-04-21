@@ -403,7 +403,7 @@ def conf_bounds_sigma(t,params_sweep,M,c):
     
     return lb,ml,ub,params_good
 
-def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=False,c=0.95,
+def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=False,c=0.95,ms=4,
                      start_cutoff=5,prior=None,mask=None,th_true=None,ax=None,sig_bound=80):
     colors = sns.color_palette()
     th,logK,sigma,score = params
@@ -434,16 +434,16 @@ def plot_predictions(data,params,t_pred = None,conf_type=None,p0=5e2,log_scale=F
     if log_scale:
         ax.set_xscale('log')
         ax.set_xlabel('Elapsed time (days)')
-        ax.plot(t-t0,plot_data.values,'o',color=colors[0],markersize=4,label='Data')
+        ax.plot(t-t0,plot_data.values,'o',color=colors[0],markersize=ms,label='Data')
     else:
         ax.set_xlabel('Time after peak (days)')
-        ax.plot(t-th_true,plot_data.values,'o',color=colors[0],markersize=4,label='Data')
+        ax.plot(t-th_true,plot_data.values,'o',color=colors[0],markersize=ms,label='Data')
 
     #Plot fit
     tau = (t_pred-th)/sigma
     pred = np.exp(logK)*(norm.cdf(tau)+ep)
     if conf_type is None:
-        ax.plot(t_axis,pred,color=colors[1],markersize=4,label='Fit')
+        ax.plot(t_axis,pred,color=colors[1],markersize=ms,label='Fit')
     #Plot predictions with confidence interval
     else:
         train = data.loc[data>p0]
@@ -549,7 +549,7 @@ def simulate_pandemic_edges(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
     
     #Make waiting time distribution
     if sampling == 'Gaussian':
-        waiting_dist = lambda x: np.abs(random.normal(muG,sigG,x))
+        waiting_dist = lambda x: np.abs(np.random.normal(muG,sigG,x))
     elif sampling == 'Exponential':
         waiting_dist = lambda x: np.random.exponential(muG, x)
     elif sampling == 'Gamma':
@@ -569,10 +569,10 @@ def simulate_pandemic_edges(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=300):
 
     while (generation < max(len(infection_edges),1)):
         #print('Generation '+str(generation)+' Num. infected: '+str(len(infected)))
-        if generation %1000 ==0:
-            print('Generation '+str(generation))
         current_edge=infection_edges[generation]
         t=infection_times[generation]
+        if generation %1000 ==0:
+            print('Time '+str(t))
 
         if current_edge[1] not in infected:
             infected_node=current_edge[1]
@@ -633,5 +633,21 @@ def stringency_scores(data,stringency,s_thresh=15,start_cutoff=5):
             t0 = data[('US','NaN')].loc[data[('US','NaN')]>=start_cutoff].index[0]
             sd_start_level.loc[item] = stringency[item].loc[t0]
             sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+
+        elif item == 'South Korea':
+            t0 = data[('Korea, South','NaN')].loc[data[('Korea, South','NaN')]>=start_cutoff].index[0]
+            sd_start_level.loc[item] = stringency[item].loc[t0]
+            sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+
+        elif item == 'Czech Republic':
+            t0 = data[('Czechia','NaN')].loc[data[('Czechia','NaN')]>=start_cutoff].index[0]
+            sd_start_level.loc[item] = stringency[item].loc[t0]
+            sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+
+        elif item == 'Canada':
+            t0 = data[('Canada','Quebec')].loc[data[('Canada','Quebec')]>=start_cutoff].index[0]
+            sd_start_level.loc[item] = stringency[item].loc[t0]
+            sd_time.loc[item] = (stringency[item].loc[stringency[item]>s_thresh].index[0]-t0)/timedelta(days=1)
+
 
     return sd_time, sd_start_level
