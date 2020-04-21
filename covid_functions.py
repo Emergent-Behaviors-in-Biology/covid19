@@ -235,13 +235,14 @@ def fit_all(data,p0=5e2,plot=False,ylabel=None,prior=None):
                     ax.set_ylim((10,None))
                     plt.show()
             
-    return params_list
+    return params_list.dropna()
 
-def predict_all(data,params_list,p0=50,c=0.95):
+def predict_all(data,params_list,p0=50,c=0.95,verbose=False):
     pred_idx = params_list.index.copy()
     predictions = []
     for item in pred_idx:
-        print(item[0]+', '+item[1])
+        if verbose:
+            print(item[0]+', '+item[1])
         train = data[item]
         params = params_list.loc[item].copy()
         try:
@@ -254,10 +255,11 @@ def predict_all(data,params_list,p0=50,c=0.95):
             best = np.argmin(params_good[:,-1])
             predictions.append([total[best],total[0],total[-1],sigma[best],sigma[0],sigma[-1],th[best],th[0],th[-1]])
         except:
-            print('---------------Failed---------------')
+            if verbose:
+                print('---------------Failed---------------')
             pred_idx = pred_idx.drop(item)
     predictions = pd.DataFrame(predictions,index=pred_idx,columns=['Nmax','Nmax_low','Nmax_high','sigma','sigma_low','sigma_high','th','th_low','th_high'])
-    return predictions.dropna()
+    return predictions
 
 def data_collapse(data,params,scale=True,colors=list(sns.color_palette())*10,ax=None,ms=10,
                   endpoint=False,alpha=1,labels=True):

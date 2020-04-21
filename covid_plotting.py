@@ -73,3 +73,73 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None):
 	ax[1].xaxis.set_minor_locator(mdates.DayLocator())
 	ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))
 	plt.show()
+
+def plot_collapse(params_deaths,params_cases,thresh=500):
+	#Extract countries with current fatalities above threshold
+	thresh = 500
+	current_fatalities = deaths.iloc[-1]
+	current_fatalities = current_fatalities.sort_index().drop('US').loc[current_fatalities>thresh].sort_values(ascending=False)
+	top_countries = current_fatalities.index
+	colors = (sns.color_palette()+sns.color_palette('pastel')+sns.color_palette('dark'))*10
+    
+	#Fatalities rescaled
+	fig,ax = data_collapse(deaths,params_deaths.loc[top_countries],endpoint=True,ms=5,colors=colors)
+	#Get legend plotted correctly
+	fig.set_figheight(7)
+	fig.set_figwidth(12)
+	ax.set_ylim((1e-3,1.5))
+	ax.set_xlim((-3,3))
+	ax.set_ylabel(r'Relative fatalities $N/N_{\rm max}$')
+	ax.set_xlabel(r'Rescaled time $(t-t_h)/\sigma$')
+	ax.set_position([0.22,0.22,0.7,0.7])
+	ax.legend(loc='upper right',bbox_to_anchor=(1.25, 1))
+	ax.set_title('Global Fatalities')
+	plt.show()
+    
+	#Cases rescaled
+	fig,ax = data_collapse(cases,params_cases.loc[top_countries],endpoint=True,ms=5,colors=colors)
+	#Get legend plotted correctly
+	fig.set_figheight(7)
+	fig.set_figwidth(12)
+	ax.set_ylim((1e-3,1.5))
+	ax.set_xlim((-3,3))
+	ax.set_ylabel(r'Relative confirmed cases $N/N_{\rm max}$')
+	ax.set_xlabel(r'Rescaled time $(t-t_h)/\sigma$')
+	ax.set_position([0.22,0.22,0.7,0.7])
+	ax.legend(loc='upper right',bbox_to_anchor=(1.25, 1))
+	ax.set_title('Global Confirmed Cases')
+	plt.show()
+
+	###########################################
+	#Extract states with current fatalities above threshold
+	current_fatalities = deaths['US'].iloc[-1]
+	current_fatalities = current_fatalities.loc[current_fatalities>thresh].sort_index().drop('NaN').sort_values(ascending=False)
+	top_countries = current_fatalities.index
+
+	#Fatalities rescaled
+	fig,ax = data_collapse(deaths['US'],params_deaths.loc['US'].loc[top_countries],endpoint=True,ms=5,colors=colors)
+	#Get legend plotted correctly
+	fig.set_figheight(7)
+	fig.set_figwidth(12)
+	ax.set_ylim((1e-3,1.5))
+	ax.set_xlim((-3,3))
+	ax.set_ylabel(r'Relative fatalities $N/N_{\rm max}$')
+	ax.set_xlabel(r'Rescaled time $(t-t_h)/\sigma$')
+	ax.set_position([0.22,0.22,0.7,0.7])
+	ax.legend(loc='upper right',bbox_to_anchor=(1.25, 1))
+	ax.set_title('US Fatalities')
+	plt.show()
+    
+	#Cases rescaled
+	fig,ax = data_collapse(cases['US'],params_cases.loc['US'].loc[top_countries],endpoint=True,ms=5,colors=colors)
+	#Get legend plotted correctly
+	fig.set_figheight(7)
+	fig.set_figwidth(12)
+	ax.set_ylim((1e-3,1.5))
+	ax.set_xlim((-3,3))
+	ax.set_ylabel(r'Relative confirmed cases $N/N_{\rm max}$')
+	ax.set_xlabel(r'Rescaled time $(t-t_h)/\sigma$')
+	ax.set_position([0.22,0.22,0.7,0.7])
+	ax.legend(loc='upper right',bbox_to_anchor=(1.25, 1))
+	ax.set_title('US Confirmed Cases')
+	plt.show()
