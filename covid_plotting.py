@@ -21,6 +21,15 @@ pred_date_apr15 = datetime(2020,4,15)
 predictions_deaths_apr15 = format_predictions('output/predictions_deaths_apr15.csv')
 predictions_cases_apr15 = format_predictions('output/predictions_cases_apr15.csv')
 
+#Get best-fit th at higher resolution
+params_deaths_apr15=pd.read_csv('output/params_deaths_apr15.csv').fillna(value='NaN').set_index(['Country/Region','Province/State'])
+params_cases_apr15=pd.read_csv('output/params_cases_apr15.csv').fillna(value='NaN').set_index(['Country/Region','Province/State'])
+predictions_deaths_apr15['th'] = tref + pd.to_timedelta(params_deaths_apr15['th'],unit='days')
+predictions_cases_apr15['th'] = tref + pd.to_timedelta(params_cases_apr15['th'],unit='days')
+
+#Get China parameters from time near peak
+params_china = fit_all(deaths.loc[:datetime(2020,2,25)],plot=False,p0=50).loc['China','Hubei']
+
 def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=False,new_predictions=None):
 
 	#Load predictions
@@ -47,7 +56,7 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	t = pd.to_datetime([t0+timedelta(days=k) for k in range(0,daymax)])
 	if log_scale:
 		time_axis_pred = (t-t0+timedelta(days=1))/timedelta(days=1)
-		pred_date = (pred_date-t0)/timedelta(days=1)
+		pred_date = (pred_date-t0+timedelta(days=1))/timedelta(days=1)
 	else:
 		time_axis_pred = t
 
@@ -113,7 +122,6 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	if log_scale:
 		ax[1].set_xscale('log')
 		ax[1].set_xlabel('Elapsed time (days)')
-		ax[1].set_xlim((10,None))
 	else:
 		ax[1].xaxis.set_minor_locator(mdates.DayLocator())
 		ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))

@@ -17,8 +17,6 @@ tref = pd.to_datetime('2020-01-01') #Reference time for converting dates to numb
 
 
 
-
-
 ################# FORMATTING ########################
 
 def format_JH(url,drop_list,columns):
@@ -26,7 +24,7 @@ def format_JH(url,drop_list,columns):
     if len(columns) == 2:
         data[columns[1]] = data[columns[1]].fillna(value='NaN')
     data = data.T.drop(drop_list).T.set_index(columns).T
-    data.index = pd.to_datetime(data.index)
+    data.index = pd.to_datetime(data.index,format='%m/%d/%y')
     
     return data
 
