@@ -44,9 +44,9 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	#Set up prediction time axis
 	t0 = cases[country,region].loc[cases[country,region]>thresh].index[0]
 	daymax = int((datetime.today()+timedelta(days=forecast_days)-t0)/timedelta(days=1))
-	t = pd.to_datetime([t0+timedelta(days=k) for k in range(1,daymax)])
+	t = pd.to_datetime([t0+timedelta(days=k) for k in range(0,daymax)])
 	if log_scale:
-		time_axis_pred = (t-t0)/timedelta(days=1)
+		time_axis_pred = (t-t0+timedelta(days=1))/timedelta(days=1)
 		pred_date = (pred_date-t0)/timedelta(days=1)
 	else:
 		time_axis_pred = t
@@ -113,6 +113,7 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	if log_scale:
 		ax[1].set_xscale('log')
 		ax[1].set_xlabel('Elapsed time (days)')
+		ax[1].set_xlim((10,None))
 	else:
 		ax[1].xaxis.set_minor_locator(mdates.DayLocator())
 		ax[1].xaxis.set_major_formatter(mdates.DateFormatter('%m-%d'))

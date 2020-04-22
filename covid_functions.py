@@ -26,7 +26,7 @@ def format_JH(url,drop_list,columns):
     if len(columns) == 2:
         data[columns[1]] = data[columns[1]].fillna(value='NaN')
     data = data.T.drop(drop_list).T.set_index(columns).T
-    data.index = pd.to_datetime(data.index,format='%m/%d/%y')
+    data.index = pd.to_datetime(data.index)
     
     return data
 
