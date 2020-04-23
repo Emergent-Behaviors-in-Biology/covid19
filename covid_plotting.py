@@ -30,7 +30,8 @@ predictions_cases_apr15['th'] = tref + pd.to_timedelta(params_cases_apr15['th'],
 #Get China parameters from time near peak
 params_china = fit_all(deaths.loc[:datetime(2020,2,25)],plot=False,p0=50).loc['China','Hubei']
 
-def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=False,new_predictions=None):
+def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=False,
+	new_predictions=None,plot_predictions=True):
 
 	#Load predictions
 	if new_predictions is None:
@@ -75,7 +76,7 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	ax[0].plot(time_axis_data,data.values,marker='o',label='data')
 
 	#Plot predictions
-	if (country,region) in predictions_deaths.index.tolist():
+	if plot_predictions and (country,region) in predictions_deaths.index.tolist():
 	    pred = predictions_deaths.loc[country,region]
 	    tau = ((t-pred['th'])/timedelta(days=1))/pred['sigma']
 	    tau_low = ((t-pred['th_low'])/timedelta(days=1))/pred['sigma_low']
@@ -106,7 +107,7 @@ def plot_region(country,region,forecast_days=20,thresh=10,ax=None,log_scale=Fals
 	ax[1].plot(time_axis_data,data.values,marker='o',label='data')
 
 	#Plot predictions
-	if (country,region) in predictions_cases.index.tolist():
+	if plot_predictions and (country,region) in predictions_cases.index.tolist():
 	    pred = predictions_cases.loc[country,region]
 	    tau = ((t-pred['th'])/timedelta(days=1))/pred['sigma']
 	    tau_low = ((t-pred['th_low'])/timedelta(days=1))/pred['sigma_low']
