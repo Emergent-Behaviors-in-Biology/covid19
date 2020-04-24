@@ -22,4 +22,4 @@ for item in sim_data.keys():
 	print(item)
 	t,cum_cases = simulate_pandemic_edges(graphs[item[0]],muG,sigG_list[item[1]],N_0=5,p=1,tmax=tmax,sampling='Gamma')
 	sim_data[item] = cum_cases
-	sim_data.to_csv('output/simulation_exp.csv')
+	sim_data.to_csv('output/simulation_all.csv')

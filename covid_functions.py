@@ -601,7 +601,7 @@ def simulate_pandemic_nodes(G,muG,sigG,sampling='Gaussian',N_0=5,p=1,tmax=60):
 
     return t, cum_cases, t_in, Rtild
 
-def simulate_pandemic_edges(G,muG,sigG,sampling='Gamma',N_0=5,p=1,tmax=500):
+def simulate_pandemic_edges(G,muG,sigG,sampling='Gamma',N_0=5,tmax=500,p=1):
     
     #Make waiting time distribution
     if sampling == 'Gaussian':
@@ -622,6 +622,9 @@ def simulate_pandemic_edges(G,muG,sigG,sampling='Gamma',N_0=5,p=1,tmax=500):
     infected_edges=G.edges(infected)
     infection_times=list(waiting_dist(len(infected_edges)))
     infection_edges, infection_times=[list(x) for x in zip(*sorted(zip(infected_edges, infection_times), key=itemgetter(1)))]
+    active = np.random.uniform(size=len(infection_edges))>1-p
+    infection_edges = list(np.array(infection_edges)[active])
+    infection_times = list(np.array(infection_times)[active])
 
     while (generation < max(len(infection_edges),1)):
         #print('Generation '+str(generation)+' Num. infected: '+str(len(infected)))
@@ -639,9 +642,11 @@ def simulate_pandemic_edges(G,muG,sigG,sampling='Gamma',N_0=5,p=1,tmax=500):
             #print('Infected node'+str(infected_node)+'at time'+str(t))
             #print(infected)
             #Add and sort new edges
-            infected_node_neighbors=G.neighbors(infected_node)
-            potential_new_edges=G.edges(infected_node_neighbors)
+            #infected_node_neighbors=G.neighbors(infected_node)
+            potential_new_edges=G.edges(infected_node)
             new_edges=[x for x in potential_new_edges if x[1] not in infected]
+            if len(new_edges) > 0:
+                new_edges = list(np.array(new_edges)[np.random.uniform(size=len(new_edges))>1-p])
             new_infection_times=list(waiting_dist(len(new_edges))+t)
             infection_times=list(infection_times)+list(new_infection_times)
             infected_edges=list(infection_edges)+list(new_edges)
