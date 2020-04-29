@@ -1,6 +1,6 @@
 # covid19
 
-This repository accompanies the manuscript "Data-driven modeling reveals a universal dynamic underlying the COVID-19 pandemic under social distancing" by Robert Marsland III and Pankaj Mehta. It contains four main items:
+This repository accompanies the manuscript [Data-driven modeling reveals a universal dynamic underlying the COVID-19 pandemic under social distancing](https://arxiv.org/abs/2004.10666) by Robert Marsland III and Pankaj Mehta. It contains four main items:
 - A Jupyter notebook "COVID-19 Predictor" for plotting predictions alongside the latest fatality and case data. [Click here to open the notebook](https://mybinder.org/v2/gh/Emergent-Behaviors-in-Biology/covid19/master?filepath=COVID-19%20predictor.ipynb), which is hosted on Binder for interactive use.
 - Another Jupyter notebook "Coronavirus Figures" that generates all the figures in the manuscript.
 - A snapshot of all the input data files (fatalities/cases, social policy metrics, and IHME predictions) required for generating the figures, from the time the analyses in the manuscript were carried out.
